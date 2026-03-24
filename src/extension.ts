@@ -7,6 +7,7 @@ import { SysRunnerPanel } from './game/sysRunnerPanel';
 import { startLanguageClient, stopLanguageClient } from './lsp/client';
 import { FeatureInspectorPanel } from './panels/featureInspectorPanel';
 import { ModelDashboardPanel } from './panels/modelDashboardPanel';
+import { ThreatModelPanel } from './panels/threatModelPanel';
 import { LspModelProvider, type LspServerStats } from './providers/lspModelProvider';
 import { VisualizationPanel } from './visualization/visualizationPanel';
 
@@ -1101,6 +1102,62 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('sysml.showSysRunner', () => {
             SysRunnerPanel.createOrShow(context.extensionUri);
+        })
+    );
+
+    // ─── Threat Model ──────────────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('sysml.showThreatModel', async (uri?: vscode.Uri) => {
+            try {
+                let targetUris: vscode.Uri[] = [];
+
+                if (uri) {
+                    const stat = await vscode.workspace.fs.stat(uri);
+                    if (stat.type === vscode.FileType.Directory) {
+                        const files = await vscode.workspace.findFiles(
+                            new vscode.RelativePattern(uri, '**/*.sysml'),
+                            '**/node_modules/**',
+                        );
+                        targetUris = files;
+                    } else if (uri.fsPath.endsWith('.sysml')) {
+                        targetUris = [uri];
+                    }
+                }
+
+                // Fallback: check if active editor is in a folder with
+                // threat-model-like SysML files, or use the active file.
+                if (targetUris.length === 0) {
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor && editor.document.languageId === 'sysml') {
+                        const dir = vscode.Uri.file(
+                            editor.document.uri.fsPath.substring(
+                                0, editor.document.uri.fsPath.lastIndexOf('/'),
+                            ),
+                        );
+                        const siblings = await vscode.workspace.findFiles(
+                            new vscode.RelativePattern(dir, '*.sysml'),
+                            '**/node_modules/**',
+                        );
+                        targetUris = siblings.length > 0 ? siblings : [editor.document.uri];
+                    }
+                }
+
+                if (targetUris.length === 0) {
+                    vscode.window.showWarningMessage(
+                        'No SysML files found for threat model visualization',
+                    );
+                    return;
+                }
+
+                // Open all documents so the LSP server knows about them
+                for (const u of targetUris) {
+                    try { await vscode.workspace.openTextDocument(u); } catch { /* skip */ }
+                }
+
+                await ThreatModelPanel.createOrShow(context.extensionUri, targetUris);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to show threat model: ${error}`);
+            }
         })
     );
 

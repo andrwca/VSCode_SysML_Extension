@@ -45,6 +45,7 @@
     "onCommand:sysml.showFeatureInspector",
     "onCommand:sysml.showModelDashboard",
     "onCommand:sysml.showSysRunner",
+    "onCommand:sysml.showThreatModel",
     "onCommand:sysml.visualizePackage"
   ],
   "main": "./out/extension.js",
@@ -201,6 +202,12 @@
         "icon": "$(game)"
       },
       {
+        "command": "sysml.showThreatModel",
+        "title": "Show Threat Model",
+        "category": "SysML",
+        "icon": "$(shield)"
+      },
+      {
         "command": "sysml.visualizePackage",
         "title": "Visualize Package",
         "category": "SysML",
@@ -213,6 +220,11 @@
           "command": "sysml.showFeatureInspector",
           "when": "resourceLangId == sysml",
           "group": "sysml@1"
+        },
+        {
+          "command": "sysml.showThreatModel",
+          "when": "resourceLangId == sysml",
+          "group": "sysml@2"
         }
       ],
       "view/item/context": [
@@ -305,6 +317,9 @@
         {
           "command": "sysml.showSysRunner",
           "when": "false"
+        },
+        {
+          "command": "sysml.showThreatModel"
         }
       ],
       "explorer/context": [
@@ -332,6 +347,16 @@
           "command": "sysml.showModelDashboard",
           "when": "resourceExtname == .sysml",
           "group": "sysml@3"
+        },
+        {
+          "command": "sysml.showThreatModel",
+          "when": "explorerResourceIsFolder",
+          "group": "sysml@4"
+        },
+        {
+          "command": "sysml.showThreatModel",
+          "when": "resourceExtname == .sysml",
+          "group": "sysml@4"
         }
       ]
     },
