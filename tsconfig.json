@@ -3,7 +3,9 @@
     "module": "commonjs",
     "target": "ES2022",
     "outDir": "out",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
@@ -27,6 +29,7 @@
   "exclude": [
     "node_modules",
     ".vscode-test",
-    "out"
+    "out",
+    "src/webview"
   ]
 }

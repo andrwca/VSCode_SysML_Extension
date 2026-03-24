@@ -1,0 +1,453 @@
+/* Threat Model Editor — ReactFlow webview styles */
+
+:root {
+  --bg: var(--vscode-editor-background);
+  --fg: var(--vscode-foreground);
+  --border: var(--vscode-panel-border, #444);
+  --subtle: var(--vscode-descriptionForeground, #888);
+  --header-bg: var(--vscode-sideBarSectionHeader-background, #252526);
+  --accent: var(--vscode-textLink-foreground, #3794ff);
+  --input-bg: var(--vscode-input-background, #3c3c3c);
+  --input-border: var(--vscode-input-border, #555);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--bg);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ── Layout ── */
+.editor-root {
+  display: flex;
+  height: 100vh;
+}
+
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.canvas-panel {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Toolbox panel ── */
+.toolbox-panel {
+  width: 240px;
+  min-width: 200px;
+  border-right: 1px solid var(--border);
+  background: var(--header-bg);
+  overflow-y: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbox-header {
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.toolbox-actions {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.toolbox-actions button {
+  width: 100%;
+  padding: 6px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toolbox-actions button:hover {
+  opacity: 0.85;
+}
+
+.toolbox-search {
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.toolbox-search input {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
+  color: var(--fg);
+  font-size: 12px;
+  outline: none;
+}
+
+.toolbox-search input:focus {
+  border-color: var(--accent);
+}
+
+.toolbox-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.category-header {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--subtle);
+  border-top: 1px solid var(--border);
+}
+
+.toolbox-category:first-child .category-header {
+  border-top: none;
+}
+
+.category-desc {
+  padding: 2px 16px 6px;
+  font-size: 10px;
+  color: var(--subtle);
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.toolbox-item {
+  padding: 6px 16px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.toolbox-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.toolbox-item:active {
+  cursor: grabbing;
+}
+
+.item-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+}
+
+.item-name {
+  font-size: 12px;
+}
+
+/* ── ReactFlow custom nodes ── */
+.rf-node {
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  min-width: 140px;
+  text-align: center;
+  font-weight: 600;
+  background: var(--header-bg);
+  color: var(--fg);
+}
+
+.rf-boundary {
+  background: transparent;
+  border: 2px dashed var(--border);
+  min-width: 300px;
+  min-height: 200px;
+  border-radius: 8px;
+  padding: 0;
+  position: relative;
+}
+
+.rf-boundary-label {
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  background: var(--bg);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rf-component {
+  border: 1px solid var(--border);
+}
+
+.rf-actor {
+  border: 2px solid #e57373;
+}
+
+.rf-threat {
+  border: 2px solid #ff8a65;
+  background: rgba(255, 138, 101, 0.12);
+  transform: rotate(0deg);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  min-width: 130px;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rf-mitigation {
+  border: 2px solid #81c784;
+  background: rgba(129, 199, 132, 0.12);
+}
+
+.rf-node-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── ReactFlow edge labels ── */
+.rf-edge-label {
+  font-size: 9px;
+  color: var(--fg);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.rf-edge-label-stride {
+  background: rgba(255, 138, 101, 0.15);
+  border-color: #ff8a65;
+  color: #ff8a65;
+}
+
+/* ── ReactFlow handles ── */
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+
+.react-flow__handle:hover {
+  width: 10px;
+  height: 10px;
+}
+
+/* ── Status bar ── */
+.status-bar {
+  font-size: 11px;
+  color: var(--subtle);
+  background: var(--header-bg);
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+/* ── Empty overlay ── */
+.empty-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  color: var(--subtle);
+  pointer-events: auto;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.empty-state .icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  text-align: center;
+  max-width: 350px;
+  line-height: 1.6;
+}
+
+.empty-state button {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* ── Dialogs ── */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  background: var(--header-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 320px;
+}
+
+.dialog-wide {
+  min-width: 380px;
+}
+
+.dialog h3 {
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.dialog input[type="text"],
+.dialog select {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
+  color: var(--fg);
+  font-size: 13px;
+  margin-bottom: 4px;
+  outline: none;
+}
+
+.dialog input[type="text"]:focus,
+.dialog select:focus {
+  border-color: var(--accent);
+}
+
+.dialog input.error {
+  border-color: #ef5350;
+}
+
+.dialog .hint {
+  font-size: 11px;
+  color: var(--subtle);
+  margin-bottom: 10px;
+}
+
+.dialog .field {
+  margin-bottom: 8px;
+}
+
+.dialog .field label {
+  font-size: 11px;
+  color: var(--subtle);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.dialog .checkbox-label {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--fg);
+}
+
+.dialog .flow-endpoints {
+  font-size: 12px;
+  margin-bottom: 12px;
+  color: var(--subtle);
+  font-weight: 600;
+}
+
+.dialog-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.dialog-buttons button {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  background: transparent;
+  color: var(--fg);
+}
+
+.dialog-buttons button.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.dialog-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── ReactFlow overrides for VS Code theme ── */
+.react-flow__background {
+  background: var(--bg) !important;
+}
+
+.react-flow__minimap {
+  background: var(--header-bg) !important;
+}
+
+.react-flow__controls button {
+  background: var(--header-bg) !important;
+  border-color: var(--border) !important;
+  color: var(--fg) !important;
+  fill: var(--fg) !important;
+}
+
+.react-flow__controls button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.react-flow__controls button svg {
+  fill: var(--fg) !important;
+}
+
+.react-flow__attribution {
+  display: none;
+}

@@ -7,6 +7,7 @@ import { SysRunnerPanel } from './game/sysRunnerPanel';
 import { startLanguageClient, stopLanguageClient } from './lsp/client';
 import { FeatureInspectorPanel } from './panels/featureInspectorPanel';
 import { ModelDashboardPanel } from './panels/modelDashboardPanel';
+import { ThreatModelEditorProvider } from './panels/threatModelEditorProvider';
 import { ThreatModelPanel } from './panels/threatModelPanel';
 import { LspModelProvider, type LspServerStats } from './providers/lspModelProvider';
 import { VisualizationPanel } from './visualization/visualizationPanel';
@@ -40,16 +41,16 @@ const metricsCache = new Map<string, Parameters<typeof updateModelMetrics>[0]>()
 
 /** Available visualization views — matches the webview's dropdown options */
 const visualizationViews = [
-    { id: 'elk',       label: '◆ General',          description: 'General view with auto-layout' },
-    { id: 'ibd',       label: '▦ Interconnection',  description: 'Interconnection view (parts, ports, connections)' },
-    { id: 'activity',  label: '▶ Activity',         description: 'Activity view (actions and flow)' },
-    { id: 'state',     label: '⌘ State',            description: 'State view (states and transitions)' },
-    { id: 'sequence',  label: '⇄ Sequence',         description: 'Sequence view (interactions)' },
-    { id: 'usecase',   label: '◎ Case',             description: 'Use case view (actors and cases)' },
-    { id: 'tree',      label: '▲ Tree',             description: 'Tree layout' },
-    { id: 'package',   label: '▤ Package',          description: 'Package diagram' },
-    { id: 'graph',     label: '● Graph',            description: 'Force-directed graph' },
-    { id: 'hierarchy', label: '■ Hierarchy',        description: 'Hierarchical block diagram' },
+    { id: 'elk', label: '◆ General', description: 'General view with auto-layout' },
+    { id: 'ibd', label: '▦ Interconnection', description: 'Interconnection view (parts, ports, connections)' },
+    { id: 'activity', label: '▶ Activity', description: 'Activity view (actions and flow)' },
+    { id: 'state', label: '⌘ State', description: 'State view (states and transitions)' },
+    { id: 'sequence', label: '⇄ Sequence', description: 'Sequence view (interactions)' },
+    { id: 'usecase', label: '◎ Case', description: 'Use case view (actors and cases)' },
+    { id: 'tree', label: '▲ Tree', description: 'Tree layout' },
+    { id: 'package', label: '▤ Package', description: 'Package diagram' },
+    { id: 'graph', label: '● Graph', description: 'Force-directed graph' },
+    { id: 'hierarchy', label: '■ Hierarchy', description: 'Hierarchical block diagram' },
 ];
 
 /**
@@ -1157,6 +1158,52 @@ export function activate(context: vscode.ExtensionContext) {
                 await ThreatModelPanel.createOrShow(context.extensionUri, targetUris);
             } catch (error) {
                 vscode.window.showErrorMessage(`Failed to show threat model: ${error}`);
+            }
+        })
+    );
+
+    // ─── Threat Model Editor (custom editor with drag-and-drop) ───
+    context.subscriptions.push(ThreatModelEditorProvider.register(context));
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('sysml.newThreatModel', async () => {
+            const folder = vscode.workspace.workspaceFolders?.[0];
+            if (!folder) {
+                vscode.window.showWarningMessage('Open a workspace folder first');
+                return;
+            }
+
+            const name = await vscode.window.showInputBox({
+                prompt: 'Name for the new threat model (camelCase)',
+                value: 'NewThreatModel',
+                validateInput: (v) => /^[A-Z][a-zA-Z0-9]*$/.test(v) ? null : 'Use PascalCase, e.g. MyThreatModel',
+            });
+            if (!name) { return; }
+
+            const fileUri = vscode.Uri.joinPath(folder.uri, `${name}.sysml`);
+            const template = [
+                `package ${name} {`,
+                `\tdoc /* ${name.replace(/([A-Z])/g, ' $1').trim()} — created with SysML Threat Model Editor. */`,
+                ``,
+                `\tprivate import ThreatModelToolbox::*;`,
+                ``,
+                `\tpart architecture {`,
+                `\t\tdoc /* Main architecture container. */`,
+                `\t}`,
+                `}`,
+                ``,
+            ].join('\n');
+            await vscode.workspace.fs.writeFile(fileUri, Buffer.from(template, 'utf-8'));
+            await vscode.commands.executeCommand('vscode.openWith', fileUri, ThreatModelEditorProvider.viewType);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('sysml.openThreatModelEditor', async (uri?: vscode.Uri) => {
+            const target = uri
+                ?? vscode.window.activeTextEditor?.document.uri;
+            if (target && target.fsPath.endsWith('.sysml')) {
+                await vscode.commands.executeCommand('vscode.openWith', target, ThreatModelEditorProvider.viewType);
             }
         })
     );
