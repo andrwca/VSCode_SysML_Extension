@@ -3,16 +3,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { ThreatModelCanvas } from './components/Canvas';
-import { FlowDialog, NameDialog } from './components/Dialogs';
+import { FlowDialog } from './components/Dialogs';
+import { PropertiesPanel } from './components/PropertiesPanel';
 import { Toolbox } from './components/Toolbox';
 import type {
   ExtensionMessage,
   NodePosition,
   ParsedModel,
   ToolboxCategory,
+  ToolboxItem,
   WebviewMessage,
 } from './types';
-import { FLOW_DATA_TYPE_MAP } from './types';
 
 // VS Code API
 declare function acquireVsCodeApi(): {
@@ -27,14 +28,41 @@ declare const __INITIAL_MODEL__: ParsedModel;
 declare const __INITIAL_POSITIONS__: NodePosition[];
 declare const __INITIAL_TOOLBOX__: ToolboxCategory[];
 
+/** Convert a camelCase type name to a readable title: "WebApplication" → "Web Application". */
+function typeToTitle(s: string): string {
+  return s.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+}
+
+/** Convert a display name to a camelCase SysML identifier: "Web Application 1" → "webApplication1". */
+function displayNameToPartName(displayName: string): string {
+  return displayName
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .map((w, i) => i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1))
+    .join('');
+}
+
+/** Generate a unique display name like "Web Application 1" and derive the partName from it. */
+function autoNameFromType(sysmlType: string, model: ParsedModel): { displayName: string; partName: string } {
+  const titleBase = typeToTitle(sysmlType);
+  const all = [
+    ...model.components, ...model.actors, ...model.threats, ...model.mitigations,
+  ].map(e => e.name);
+  const boundaryNames = model.boundaries.map(b => b.name);
+  const existing = new Set([...all, ...boundaryNames]);
+  let i = 1;
+  let partName = displayNameToPartName(`${titleBase} ${i}`);
+  while (existing.has(partName)) { i++; partName = displayNameToPartName(`${titleBase} ${i}`); }
+  return { displayName: `${titleBase} ${i}`, partName };
+}
+
 function App() {
   const [model, setModel] = useState<ParsedModel>(__INITIAL_MODEL__);
   const [positions, setPositions] = useState<NodePosition[]>(__INITIAL_POSITIONS__);
   const toolbox = __INITIAL_TOOLBOX__;
 
-  // ── Name dialog state ──
-  const [nameDialogOpen, setNameDialogOpen] = useState(false);
-  const [pendingDrop, setPendingDrop] = useState<{ sysmlType: string; x: number; y: number } | null>(null);
+  // ── Selection state ──
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // ── Flow dialog state ──
   const [flowDialogOpen, setFlowDialogOpen] = useState(false);
@@ -54,34 +82,36 @@ function App() {
     return () => window.removeEventListener('message', handler);
   }, []);
 
-  // ── Toolbox drop handler ──
-  const handleDrop = useCallback((sysmlType: string, usageKeyword: string, x: number, y: number) => {
-    if (usageKeyword === 'occurrence') {
-      // Flow type → open flow dialog with pre-selected data type
-      setFlowEndpoints(null);
-      setFlowTypeHint(FLOW_DATA_TYPE_MAP[sysmlType] || 'HttpRequest');
-      setFlowDialogOpen(true);
-    } else {
-      // Node type → open name dialog
-      setPendingDrop({ sysmlType, x, y });
-      setNameDialogOpen(true);
-    }
-  }, []);
+  // ── Toolbox drop handler — auto-name, no dialog ──
+  const handleDrop = useCallback((
+    sysmlType: string, _usageKeyword: string,
+    x: number, y: number, boundary?: string, itemJson?: string,
+  ) => {
+    const { displayName, partName } = autoNameFromType(sysmlType, model);
 
-  // ── Name dialog confirm ──
-  const handleNameConfirm = useCallback((name: string, boundary?: string) => {
-    setNameDialogOpen(false);
-    if (!pendingDrop) return;
+    // Parse the full toolbox item if available
+    let item: ToolboxItem | undefined;
+    if (itemJson) {
+      try { item = JSON.parse(itemJson); } catch { /* ignore */ }
+    }
+
+    // Build default attrValues from params, seed description with display name
+    const attrValues: Record<string, string> = { description: displayName };
+    if (item?.params) {
+      for (const p of item.params) {
+        if (p.default !== undefined) { attrValues[p.name] = p.default; }
+      }
+    }
+
     vscode.postMessage({
       command: 'drop',
-      sysmlType: pendingDrop.sysmlType,
-      partName: name,
-      x: pendingDrop.x,
-      y: pendingDrop.y,
+      sysmlType,
+      partName,
+      x, y,
       boundary,
+      attrValues,
     });
-    setPendingDrop(null);
-  }, [pendingDrop]);
+  }, [model]);
 
   // ── ReactFlow native connect (drag handle → handle) ──
   const handleConnect = useCallback((fromPart: string, toPart: string) => {
@@ -102,8 +132,8 @@ function App() {
   }, []);
 
   // ── Node move ──
-  const handleNodeMove = useCallback((partName: string, x: number, y: number) => {
-    vscode.postMessage({ command: 'move', partName, x, y });
+  const handleNodeMove = useCallback((partName: string, x: number, y: number, width?: number, height?: number) => {
+    vscode.postMessage({ command: 'move', partName, x, y, width, height });
   }, []);
 
   // ── Delete ──
@@ -114,15 +144,13 @@ function App() {
     vscode.postMessage({ command: 'deleteFlow', flowName });
   }, []);
 
-  // ── New file ──
-  const handleNewFile = useCallback(() => {
-    const name = prompt('Package name for the threat model:', 'NewThreatModel');
-    if (name) { vscode.postMessage({ command: 'newFile', packageName: name }); }
+  // ── Update properties ──
+  const handleUpdateProperties = useCallback((partName: string, attributes: Record<string, string>) => {
+    vscode.postMessage({ command: 'updateProperties', partName, attributes });
   }, []);
 
   // Auto-layout placeholder
   const handleAutoLayout = useCallback(() => {
-    // ELK layout is done by re-requesting positions from the extension
     vscode.postMessage({ command: 'requestUpdate' });
   }, []);
 
@@ -132,14 +160,13 @@ function App() {
 
   return (
     <div className="editor-root">
-      <Toolbox categories={toolbox} onNewFile={handleNewFile} />
+      <Toolbox categories={toolbox} />
       <div className="canvas-wrapper">
         {isEmpty && (
           <div className="empty-overlay">
             <div className="empty-state">
               <div className="icon">🛡️</div>
-              <p>Drag elements from the toolbox to start building your threat model, or scaffold a new one.</p>
-              <button onClick={handleNewFile}>Create New Threat Model</button>
+              <p>Drag elements from the toolbox to start building your threat model.</p>
             </div>
           </div>
         )}
@@ -153,15 +180,15 @@ function App() {
           onDeleteFlow={handleDeleteFlow}
           onConnect={handleConnect}
           onAutoLayout={handleAutoLayout}
+          onSelectionChange={setSelectedNodeId}
         />
       </div>
 
-      <NameDialog
-        open={nameDialogOpen}
-        sysmlType={pendingDrop?.sysmlType || ''}
-        boundaries={model.boundaries}
-        onConfirm={handleNameConfirm}
-        onCancel={() => { setNameDialogOpen(false); setPendingDrop(null); }}
+      <PropertiesPanel
+        selectedNodeId={selectedNodeId}
+        model={model}
+        toolbox={toolbox}
+        onUpdateProperties={handleUpdateProperties}
       />
 
       <FlowDialog

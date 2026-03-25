@@ -1,20 +1,22 @@
 package BasicWebAppArchitecture {
-	doc /* Threat model for the Azure Basic Web App architecture.
-	     * Reference: https://learn.microsoft.com/en-us/azure/architecture/web-apps/app-service/architectures/basic-web-app
-	     *
-	     * Components: User, App Service (with Easy Auth), Microsoft Entra ID,
-	     * Azure SQL Database, Application Insights, Azure Monitor.
-	     *
-	     * Threats are modelled as concern defs (stakeholder worries).
-	     * Mitigations are modelled as requirement defs (security controls). */
+	doc
+	/* Threat model for the Azure Basic Web App architecture.
+	 * Reference: https://learn.microsoft.com/en-us/azure/architecture/web-apps/app-service/architectures/basic-web-app
+	 *
+	 * Components: User, App Service (with Easy Auth), Microsoft Entra ID,
+	 * Azure SQL Database, Application Insights, Azure Monitor.
+	 *
+	 * Threats are modelled as concern defs (stakeholder worries).
+	 * Mitigations are modelled as requirement defs (security controls).
+	 */
 
 	private import ThreatModelToolbox::*;
 
 	// ─── Architecture ───
 
-	part basicWebApp 
-    {
-		doc /* The complete basic web app architecture with trust boundaries, components, and threats. */
+	part basicWebApp {
+		doc
+		/* The complete basic web app architecture with trust boundaries, components, and threats. */
 
 		// ── Trust Boundaries (components nested inside their boundary) ──
 
@@ -60,7 +62,8 @@ package BasicWebAppArchitecture {
 			}
 
 			part appInsights : MonitoringService {
-				:>> description = "Application Insights collecting telemetry from App Service and SQL Database.";
+				:>> description =
+					"Application Insights collecting telemetry from App Service and SQL Database.";
 				:>> isPubliclyAccessible = false;
 				:>> authentication = AuthenticationKind::apiKey;
 				:>> encryption = EncryptionKind::both;
@@ -73,17 +76,19 @@ package BasicWebAppArchitecture {
 				:>> encryption = EncryptionKind::both;
 			}
 		}
-    }
+	}
 
 	// ── Components ──
 
-    occurrence def SuccessfulHttpRequest {
-        doc /* A successful HTTP request from the user to the web application. */
+	occurrence def SuccessfulHttpRequest {
+		doc
+		/* A successful HTTP request from the user to the web application. */
 
 		succession flow userToApp of HttpRequest
 			from basicWebApp.internetBoundary.externalAttacker
 			to basicWebApp.azurePlatformBoundary.appService {
-			doc /* HTTPS request from the user's browser to App Service. */
+			doc
+			/* HTTPS request from the user's browser to App Service. */
 			@StrideTag {
 				category = StrideCategoryKind::spoofing;
 				severity = SeverityKind::high;
@@ -92,15 +97,17 @@ package BasicWebAppArchitecture {
 		}
 
 		then succession flow appToEntra of HttpRequest
-			from basicWebApp.azurePlatformBoundary.appService 
+			from basicWebApp.azurePlatformBoundary.appService
 			to basicWebApp.azurePlatformBoundary.entraId {
-			doc /* Easy Auth redirects unauthenticated requests to Entra ID for OAuth2 authentication. */
+			doc
+			/* Easy Auth redirects unauthenticated requests to Entra ID for OAuth2 authentication. */
 		}
 
 		then succession flow appToSql of DatabaseQuery
 			from basicWebApp.azurePlatformBoundary.appService
 			to basicWebApp.azurePlatformBoundary.sqlDatabase {
-			doc /* App Service queries SQL Database using a connection string stored in app settings. */
+			doc
+			/* App Service queries SQL Database using a connection string stored in app settings. */
 			@StrideTag {
 				category = StrideCategoryKind::tampering;
 				severity = SeverityKind::critical;
@@ -109,9 +116,10 @@ package BasicWebAppArchitecture {
 		}
 
 		then succession flow sqlToApp of DatabaseResult
-			from basicWebApp.azurePlatformBoundary.sqlDatabase 
+			from basicWebApp.azurePlatformBoundary.sqlDatabase
 			to basicWebApp.azurePlatformBoundary.appService {
-			doc /* SQL Database returns result sets to App Service. */
+			doc
+			/* SQL Database returns result sets to App Service. */
 			@StrideTag {
 				category = StrideCategoryKind::informationDisclosure;
 				severity = SeverityKind::high;
@@ -120,17 +128,20 @@ package BasicWebAppArchitecture {
 		}
 
 		then succession flow appToInsights of TelemetryPayload
-			from basicWebApp.azurePlatformBoundary.appService 
+			from basicWebApp.azurePlatformBoundary.appService
 			to basicWebApp.azurePlatformBoundary.appInsights {
-			doc /* App Service emits request traces and dependency telemetry to Application Insights. */
+			doc
+			/* App Service emits request traces and dependency telemetry to Application Insights. */
 		}
-    }
+	}
 
 	// ── Threats ──
 
 	concern spoofingNoWaf : Threat {
-		doc /* Without a WAF, attackers can send crafted requests directly to
-		     * App Service, potentially spoofing legitimate clients. */
+		doc
+		/* Without a WAF, attackers can send crafted requests directly to
+		 * App Service, potentially spoofing legitimate clients.
+		 */
 		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
 		:>> strideCategory = StrideCategoryKind::spoofing;
 		:>> severity = SeverityKind::high;
@@ -139,8 +150,10 @@ package BasicWebAppArchitecture {
 	}
 
 	concern sqlInjection : Threat {
-		doc /* Application code may be vulnerable to SQL injection if queries
-		     * are not parameterised. */
+		doc
+		/* Application code may be vulnerable to SQL injection if queries
+		 * are not parameterised.
+		 */
 		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
 		:>> strideCategory = StrideCategoryKind::tampering;
 		:>> severity = SeverityKind::critical;
@@ -149,8 +162,10 @@ package BasicWebAppArchitecture {
 	}
 
 	concern secretsInAppSettings : Threat {
-		doc /* Connection strings stored in App Settings could be exposed
-		     * through misconfiguration, Kudu, or memory dumps. */
+		doc
+		/* Connection strings stored in App Settings could be exposed
+		 * through misconfiguration, Kudu, or memory dumps.
+		 */
 		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
 		:>> strideCategory = StrideCategoryKind::informationDisclosure;
 		:>> severity = SeverityKind::high;
@@ -159,8 +174,10 @@ package BasicWebAppArchitecture {
 	}
 
 	concern publicSqlEndpoint : Threat {
-		doc /* SQL Database is reachable over the public internet, broadening
-		     * the attack surface. */
+		doc
+		/* SQL Database is reachable over the public internet, broadening
+		 * the attack surface.
+		 */
 		subject :>> target = basicWebApp.azurePlatformBoundary.sqlDatabase;
 		:>> strideCategory = StrideCategoryKind::informationDisclosure;
 		:>> severity = SeverityKind::high;
@@ -169,8 +186,10 @@ package BasicWebAppArchitecture {
 	}
 
 	concern noRateLimiting : Threat {
-		doc /* Without a gateway or WAF, App Service is vulnerable to volumetric
-		     * DDoS or application-layer denial of service. */
+		doc
+		/* Without a gateway or WAF, App Service is vulnerable to volumetric
+		 * DDoS or application-layer denial of service.
+		 */
 		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
 		:>> strideCategory = StrideCategoryKind::denialOfService;
 		:>> severity = SeverityKind::medium;
@@ -179,8 +198,10 @@ package BasicWebAppArchitecture {
 	}
 
 	concern insufficientLogging : Threat {
-		doc /* Without Defender for App Service, security events may not be
-		     * detected or alerted on. */
+		doc
+		/* Without Defender for App Service, security events may not be
+		 * detected or alerted on.
+		 */
 		subject :>> target = basicWebApp.azurePlatformBoundary.appInsights;
 		:>> strideCategory = StrideCategoryKind::repudiation;
 		:>> severity = SeverityKind::medium;
@@ -189,8 +210,10 @@ package BasicWebAppArchitecture {
 	}
 
 	concern kuduExposure : Threat {
-		doc /* Kudu SCM endpoint and remote debugging are enabled, giving
-		     * attackers potential control-plane access. */
+		doc
+		/* Kudu SCM endpoint and remote debugging are enabled, giving
+		 * attackers potential control-plane access.
+		 */
 		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
 		:>> strideCategory = StrideCategoryKind::elevationOfPrivilege;
 		:>> severity = SeverityKind::high;
@@ -201,87 +224,85 @@ package BasicWebAppArchitecture {
 	// ── Mitigations ──
 
 	requirement enableWaf : SecurityRequirement {
-		doc /* Deploy Azure Application Gateway with Web Application Firewall
-		     * in front of App Service. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Deploy Azure Application Gateway with Web Application Firewall
+		 * in front of App Service.
+		 */
+		subject :>> target = basicWebApp.spoofingNoWaf;
 		:>> isImplemented = false;
 	}
 
 	requirement useParameterisedQueries : SecurityRequirement {
-		doc /* Use parameterised queries or an ORM to prevent SQL injection. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Use parameterised queries or an ORM to prevent SQL injection. */
+		subject :>> target = basicWebApp.sqlInjection;
 		:>> isImplemented = true;
 	}
 
 	requirement useManagedIdentity : SecurityRequirement {
-		doc /* Replace connection string credentials with managed identity
-		     * authentication to SQL. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Replace connection string credentials with managed identity
+		 * authentication to SQL.
+		 */
+		subject :>> target = basicWebApp.secretsInAppSettings;
 		:>> isImplemented = false;
 	}
 
 	requirement useKeyVault : SecurityRequirement {
-		doc /* Store secrets in Azure Key Vault and use Key Vault references
-		     * in App Settings. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Store secrets in Azure Key Vault and use Key Vault references
+		 * in App Settings.
+		 */
+		subject :>> target = basicWebApp.secretsInAppSettings;
 		:>> isImplemented = false;
 	}
 
 	requirement usePrivateLink : SecurityRequirement {
-		doc /* Enable Azure Private Link to remove the SQL Database public endpoint. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.sqlDatabase;
+		doc
+		/* Enable Azure Private Link to remove the SQL Database public endpoint. */
+		subject :>> target = basicWebApp.publicSqlEndpoint;
 		:>> isImplemented = false;
 	}
 
 	requirement firewallRules : SecurityRequirement {
-		doc /* Configure SQL firewall rules to allow only App Service outbound IPs. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.sqlDatabase;
+		doc
+		/* Configure SQL firewall rules to allow only App Service outbound IPs. */
+		subject :>> target = basicWebApp.publicSqlEndpoint;
 		:>> isImplemented = false;
 	}
 
 	requirement enableDdosProtection : SecurityRequirement {
-		doc /* Deploy Azure DDoS Protection and Application Gateway with rate limiting. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Deploy Azure DDoS Protection and Application Gateway with rate limiting. */
+		subject :>> target = basicWebApp.noRateLimiting;
 		:>> isImplemented = false;
 	}
 
 	requirement enableDefender : SecurityRequirement {
-		doc /* Enable Microsoft Defender for App Service and configure security alerts. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Enable Microsoft Defender for App Service and configure security alerts. */
+		subject :>> target = basicWebApp.insufficientLogging;
 		:>> isImplemented = false;
 	}
 
 	requirement enableDiagnosticLogs : SecurityRequirement {
-		doc /* Enable full diagnostic logging and ship logs to Log Analytics. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appInsights;
+		doc
+		/* Enable full diagnostic logging and ship logs to Log Analytics. */
+		subject :>> target = basicWebApp.insufficientLogging;
 		:>> isImplemented = false;
 	}
 
 	requirement disableRemoteDebug : SecurityRequirement {
-		doc /* Disable remote debugging and restrict SCM access in production. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Disable remote debugging and restrict SCM access in production. */
+		subject :>> target = basicWebApp.kuduExposure;
 		:>> isImplemented = false;
 	}
 
 	requirement disableLocalAuth : SecurityRequirement {
-		doc /* Disable local FTP and SCM authentication methods. */
-		subject :>> target = basicWebApp.azurePlatformBoundary.appService;
+		doc
+		/* Disable local FTP and SCM authentication methods. */
+		subject :>> target = kuduExposure;
 		:>> isImplemented = false;
 	}
-
-    // ── Allocations of mitigations to components ──
-
-	allocation mitigation1 : Mitigation allocate BasicWebAppArchitecture::enableWaf to basicWebApp.azurePlatformBoundary.appService;
-	allocation mitigation2 : Mitigation allocate BasicWebAppArchitecture::useParameterisedQueries to basicWebApp.azurePlatformBoundary.appService;
-	allocation mitigation3 : Mitigation allocate BasicWebAppArchitecture::useManagedIdentity to basicWebApp.azurePlatformBoundary.appService;
-	allocation mitigation4 : Mitigation allocate BasicWebAppArchitecture::useKeyVault to basicWebApp.azurePlatformBoundary.appService;
-	allocation mitigation5 : Mitigation allocate BasicWebAppArchitecture::usePrivateLink to basicWebApp.azurePlatformBoundary.sqlDatabase;
-	allocation mitigation6 : Mitigation allocate BasicWebAppArchitecture::firewallRules to basicWebApp.azurePlatformBoundary.sqlDatabase;
-	allocation mitigation7 : Mitigation allocate BasicWebAppArchitecture::enableDdosProtection to basicWebApp.azurePlatformBoundary.appService;
-	allocation mitigation8 : Mitigation allocate BasicWebAppArchitecture::enableDefender to basicWebApp.azurePlatformBoundary.appService;
-	allocation mitigation9 : Mitigation allocate BasicWebAppArchitecture::enableDiagnosticLogs to basicWebApp.azurePlatformBoundary.appInsights;
-	allocation mitigation10 : Mitigation allocate BasicWebAppArchitecture::disableRemoteDebug to basicWebApp.azurePlatformBoundary.appService;
-	allocation mitigation11 : Mitigation allocate BasicWebAppArchitecture::disableLocalAuth to basicWebApp.azurePlatformBoundary.appService;
-	
-
 }

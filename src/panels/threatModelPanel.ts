@@ -64,7 +64,7 @@ interface Mitigation {
   name: string;
   description: string;
   isImplemented: boolean;
-  targetComponent: string;
+  targetThreat: string;
 }
 
 interface ThreatModel {
@@ -279,14 +279,12 @@ export class ThreatModelPanel {
     // Extract mitigations (requirement ... : SecurityRequirement)
     this._findTypedBlocks(cleaned, 'SecurityRequirement').forEach(({ name: mname, body: mbody }) => {
       const targetMatch = mbody.match(/subject\s+:>>\s*target\s*=\s*([\w.]+)/);
-      const targetComponent = targetMatch
-        ? targetMatch[1].split('.').pop() ?? ''
-        : '';
+      const targetThreat = targetMatch ? targetMatch[1] : '';
       model.mitigations.push({
         name: mname,
         description: getDoc(mbody),
         isImplemented: getAttr(mbody, 'isImplemented') === 'true',
-        targetComponent,
+        targetThreat,
       });
     });
 
@@ -477,7 +475,7 @@ p { opacity: 0.6; font-style: italic; text-align: center; font-size: 14px; }
                 <div class="mit-body">
                     <div class="mit-name">${this._esc(this._camelToTitle(m.name))}</div>
                     <div class="mit-desc">${this._esc(m.description)}</div>
-                    <div class="mit-target">Target: ${this._esc(m.targetComponent)}</div>
+                    <div class="mit-target">Mitigates: ${this._esc(this._camelToTitle(m.targetThreat))}</div>
                 </div>
             </div>`).join('');
 

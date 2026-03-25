@@ -42,6 +42,139 @@ body {
   height: 100%;
 }
 
+/* ── Properties panel (right sidebar) ── */
+.properties-panel {
+  width: 260px;
+  min-width: 220px;
+  border-left: 1px solid var(--border);
+  background: var(--header-bg);
+  overflow-y: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.properties-header {
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.properties-empty {
+  padding: 24px 16px;
+  color: var(--subtle);
+  font-size: 12px;
+  text-align: center;
+}
+
+.properties-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prop-section {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.prop-type-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  background: rgba(55, 148, 255, 0.12);
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-bottom: 4px;
+}
+
+.prop-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.prop-part-name {
+  font-size: 10px;
+  color: var(--subtle);
+  font-family: monospace;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.prop-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.prop-field label {
+  font-size: 11px;
+  color: var(--subtle);
+  font-weight: 600;
+}
+
+.prop-field input[type="text"],
+.prop-field select {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
+  color: var(--fg);
+  font-size: 12px;
+  outline: none;
+}
+
+.prop-field input[type="text"]:focus,
+.prop-field select:focus {
+  border-color: var(--accent);
+}
+
+.prop-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.prop-checkbox input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.prop-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.prop-actions button.primary {
+  padding: 5px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.prop-actions button.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prop-actions button.primary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
 /* ── Toolbox panel ── */
 .toolbox-panel {
   width: 240px;
@@ -325,7 +458,7 @@ body {
 }
 
 .dialog {
-  background: var(--header-bg);
+  background: var(--vscode-editor-background, #1e1e1e);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px;

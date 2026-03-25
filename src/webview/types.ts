@@ -1,5 +1,13 @@
 /** Shared types between the extension host and the webview. */
 
+export interface ToolboxParam {
+  name: string;
+  type: 'string' | 'boolean' | 'enum';
+  enumType?: string;
+  enumValues?: string[];
+  default?: string;
+}
+
 export interface ToolboxItem {
   id: string;
   category: string;
@@ -10,6 +18,7 @@ export interface ToolboxItem {
   description: string;
   icon: string;
   importPackage: string;
+  params: ToolboxParam[];
 }
 
 export interface ToolboxCategory {
@@ -24,6 +33,8 @@ export interface NodePosition {
   partName: string;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
 }
 
 export interface ParsedElement {
@@ -63,12 +74,13 @@ export interface ParsedModel {
 
 /** Messages from webview → extension. */
 export type WebviewMessage =
-  | { command: 'drop'; sysmlType: string; partName: string; x: number; y: number; boundary?: string }
-  | { command: 'move'; partName: string; x: number; y: number }
+  | { command: 'drop'; sysmlType: string; partName: string; x: number; y: number; boundary?: string; attrValues?: Record<string, string> }
+  | { command: 'move'; partName: string; x: number; y: number; width?: number; height?: number }
   | { command: 'delete'; partName: string }
   | { command: 'deleteFlow'; flowName: string }
   | { command: 'newFile'; packageName: string }
   | { command: 'createFlow'; sequenceName: string; flowName: string; dataType: string; fromPart: string; toPart: string; addStride: boolean }
+  | { command: 'updateProperties'; partName: string; attributes: Record<string, string> }
   | { command: 'requestUpdate' };
 
 /** Messages from extension → webview. */

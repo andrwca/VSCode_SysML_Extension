@@ -7,7 +7,7 @@ import { SysRunnerPanel } from './game/sysRunnerPanel';
 import { startLanguageClient, stopLanguageClient } from './lsp/client';
 import { FeatureInspectorPanel } from './panels/featureInspectorPanel';
 import { ModelDashboardPanel } from './panels/modelDashboardPanel';
-import { ThreatModelEditorProvider } from './panels/threatModelEditorProvider';
+import { ThreatModelEditorProvider } from './panels/threatModel';
 import { ThreatModelPanel } from './panels/threatModelPanel';
 import { LspModelProvider, type LspServerStats } from './providers/lspModelProvider';
 import { VisualizationPanel } from './visualization/visualizationPanel';

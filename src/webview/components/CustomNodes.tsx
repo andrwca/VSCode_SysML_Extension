@@ -1,9 +1,10 @@
-import { Handle, NodeProps, Position } from '@xyflow/react';
+import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { memo } from 'react';
 
-/** Dashed boundary group node. */
+/** Dashed boundary group node with resize handles. */
 export const BoundaryNode = memo(({ data }: NodeProps) => (
-  <div className="rf-node rf-boundary">
+  <div className="rf-node rf-boundary" style={{ width: '100%', height: '100%' }}>
+    <NodeResizer minWidth={200} minHeight={150} lineStyle={{ stroke: 'var(--vscode-panel-border, #444)' }} handleStyle={{ width: 8, height: 8, background: 'var(--vscode-textLink-foreground, #3794ff)' }} />
     <div className="rf-boundary-label">{(data as Record<string, string>).label}</div>
   </div>
 ));

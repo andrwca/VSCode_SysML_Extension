@@ -3,15 +3,15 @@ import type { ToolboxCategory, ToolboxItem } from '../types';
 
 interface ToolboxProps {
   categories: ToolboxCategory[];
-  onNewFile: () => void;
 }
 
-export function Toolbox({ categories, onNewFile }: ToolboxProps) {
+export function Toolbox({ categories }: ToolboxProps) {
   const [filter, setFilter] = useState('');
 
   const onDragStart = useCallback((e: DragEvent, item: ToolboxItem) => {
     e.dataTransfer.setData('application/reactflow-type', item.sysmlType);
     e.dataTransfer.setData('application/reactflow-usage', item.usageKeyword);
+    e.dataTransfer.setData('application/reactflow-item', JSON.stringify(item));
     e.dataTransfer.effectAllowed = 'move';
   }, []);
 
@@ -20,9 +20,6 @@ export function Toolbox({ categories, onNewFile }: ToolboxProps) {
   return (
     <div className="toolbox-panel">
       <div className="toolbox-header">🛡️ Threat Model Toolbox</div>
-      <div className="toolbox-actions">
-        <button onClick={onNewFile}>New Threat Model</button>
-      </div>
       <div className="toolbox-search">
         <input
           type="text"

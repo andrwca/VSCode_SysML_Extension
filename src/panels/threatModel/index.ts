@@ -1,0 +1,1 @@
+export { ThreatModelEditorProvider } from './threatModelEditorProvider';
