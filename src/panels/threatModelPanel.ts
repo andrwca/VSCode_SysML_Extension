@@ -200,15 +200,37 @@ export class ThreatModelPanel {
         actors: [],
       };
 
-      // Find components inside boundary
-      const componentTypes = ['WebApplication', 'IdentityProvider', 'DataStore',
+      // Find components inside boundary.
+      // Map Azure-specific subtypes (from ThreatModelToolbox) to their base category.
+      const azureTypeMap: Record<string, string> = {
+        AzureAppService: 'WebApplication', AzureFunctions: 'WebApplication',
+        AzureContainerApps: 'WebApplication', AzureKubernetesService: 'WebApplication',
+        AzureVirtualMachine: 'WebApplication',
+        AzureEntraId: 'IdentityProvider', AzureEntraID: 'IdentityProvider',
+        AzureManagedIdentity: 'IdentityProvider',
+        AzureSQLDatabase: 'DataStore', AzureCosmosDB: 'DataStore',
+        AzureBlobStorage: 'DataStore', AzureTableStorage: 'DataStore',
+        AzureRedisCache: 'DataStore', AzureDataLakeStorage: 'DataStore',
+        AzurePostgreSQL: 'DataStore', AzureMySQL: 'DataStore',
+        AzureKeyVault: 'SecretStore',
+        AzureMonitor: 'MonitoringService', AzureApplicationInsights: 'MonitoringService',
+        AzureLogAnalytics: 'MonitoringService', AzureSentinel: 'MonitoringService',
+        AzureApplicationGateway: 'Gateway', AzureFrontDoor: 'Gateway',
+        AzureLoadBalancer: 'Gateway', AzureFirewall: 'Gateway',
+        AzureTrafficManager: 'Gateway', AzureAPIManagement: 'Gateway',
+        AzureVPNGateway: 'Gateway',
+        AzureOpenAI: 'ExternalSystem', AzureCognitiveServices: 'ExternalSystem',
+      };
+      const baseTypes = ['WebApplication', 'IdentityProvider', 'DataStore',
         'MonitoringService', 'Gateway', 'ExternalSystem', 'SecretStore'];
-      for (const ctype of componentTypes) {
+      const allComponentTypes = [...baseTypes, ...Object.keys(azureTypeMap)];
+      for (const ctype of allComponentTypes) {
         this._findTypedBlocks(body, ctype).forEach(({ name: cname, body: cbody }) => {
           boundary.components.push(cname);
+          const baseType = azureTypeMap[ctype] ?? ctype;
           model.components.push({
             name: cname,
-            type: ctype,
+            type: baseType,
             description: getAttr(cbody, 'description') || getDoc(cbody),
             isPubliclyAccessible: getAttr(cbody, 'isPubliclyAccessible') === 'true',
             authentication: getAttr(cbody, 'authentication'),
@@ -219,17 +241,19 @@ export class ThreatModelPanel {
         });
       }
 
-      // Find threat actors inside boundary
-      this._findTypedBlocks(body, 'ThreatActor').forEach(({ name: aname, body: abody }) => {
-        boundary.actors.push(aname);
-        model.actors.push({
-          name: aname,
-          description: getAttr(abody, 'description') || getDoc(abody),
-          motivation: getAttr(abody, 'motivation'),
-          capability: getAttr(abody, 'capability'),
-          boundary: name,
+      // Find threat actors inside boundary (both ThreatActor and Actor types)
+      for (const actorType of ['ThreatActor', 'Actor']) {
+        this._findTypedBlocks(body, actorType).forEach(({ name: aname, body: abody }) => {
+          boundary.actors.push(aname);
+          model.actors.push({
+            name: aname,
+            description: getAttr(abody, 'description') || getDoc(abody),
+            motivation: getAttr(abody, 'motivation'),
+            capability: getAttr(abody, 'capability'),
+            boundary: name,
+          });
         });
-      });
+      }
 
       model.boundaries.push(boundary);
     });
@@ -297,7 +321,7 @@ export class ThreatModelPanel {
    */
   private _findTypedBlocks(text: string, typeName: string): { name: string; body: string }[] {
     const results: { name: string; body: string }[] = [];
-    const re = new RegExp(`(?:part|concern|requirement|allocation)\\s+(\\w+)\\s*:\\s*${typeName}\\b`, 'g');
+    const re = new RegExp(`(?:part|concern|requirement|allocation)\\s+(\\w+)\\s*:\\s*(?:\\w+\\.)?${typeName}\\b`, 'g');
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
       const name = m[1];
@@ -327,7 +351,7 @@ export class ThreatModelPanel {
       return;
     }
     const model = this._parse(text);
-    if (model.threats.length === 0 && model.components.length === 0) {
+    if (model.boundaries.length === 0 && model.components.length === 0 && model.threats.length === 0) {
       this._panel.webview.html = this._emptyHtml('No threat model elements found in the SysML files');
       return;
     }
@@ -561,9 +585,9 @@ body {
 /* ── STRIDE distribution ── */
 .stride-bars { display: flex; gap: 8px; flex-wrap: wrap; }
 .stride-bar-item { flex: 1; min-width: 100px; text-align: center; }
-.stride-bar-visual { height: 40px; border-radius: 6px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
-.stride-bar-fill { border-radius: 6px; width: 100%; position: absolute; bottom: 0; transition: height 0.3s; }
-.stride-bar-count { position: relative; z-index: 1; font-weight: 700; font-size: 16px; padding-bottom: 4px; }
+.stride-bar-visual { height: 48px; border-radius: 6px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
+.stride-bar-fill { border-radius: 6px; width: 100%; position: absolute; bottom: 0; min-height: 28px; transition: height 0.3s; }
+.stride-bar-count { position: relative; z-index: 1; font-weight: 700; font-size: 16px; padding: 4px 0; }
 .stride-bar-label { font-size: 10px; color: var(--subtle); margin-top: 4px; text-transform: uppercase; }
 
 /* ── Risk matrix ── */
@@ -990,9 +1014,7 @@ body {
                     'target-arrow-color': borderColor,
                     'target-arrow-shape': 'triangle',
                     'arrow-scale': 1,
-                    'curve-style': 'taxi',
-                    'taxi-direction': 'rightward',
-                    'taxi-turn': '50px',
+                    'curve-style': 'bezier',
                     'label': function(ele) { return ele.data('seq') + '. ' + ele.data('label'); },
                     'font-size': 10,
                     'color': fgColor,
@@ -1054,12 +1076,11 @@ body {
             layoutOptions: {
                 'elk.algorithm': 'layered',
                 'elk.direction': 'RIGHT',
-                'elk.spacing.nodeNode': '80',
-                'elk.layered.spacing.nodeNodeBetweenLayers': '200',
-                'elk.spacing.edgeNode': '60',
-                'elk.spacing.edgeEdge': '30',
-                'elk.edgeRouting': 'ORTHOGONAL',
-                'elk.padding': '[top=50,left=50,bottom=50,right=50]',
+                'elk.spacing.nodeNode': '50',
+                'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+                'elk.spacing.edgeNode': '30',
+                'elk.spacing.edgeEdge': '20',
+                'elk.padding': '[top=40,left=40,bottom=40,right=40]',
             },
             children: boundaryChildren[b.name] || [],
         }));
@@ -1075,15 +1096,14 @@ body {
                 'elk.algorithm': 'layered',
                 'elk.direction': 'RIGHT',
                 'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
-                'elk.spacing.nodeNode': '80',
-                'elk.layered.spacing.nodeNodeBetweenLayers': '200',
-                'elk.spacing.edgeNode': '60',
-                'elk.spacing.edgeEdge': '30',
-                'elk.edgeRouting': 'ORTHOGONAL',
+                'elk.spacing.nodeNode': '50',
+                'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+                'elk.spacing.edgeNode': '30',
+                'elk.spacing.edgeEdge': '20',
                 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
                 'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
                 'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-                'elk.padding': '[top=60,left=60,bottom=60,right=60]',
+                'elk.padding': '[top=50,left=50,bottom=50,right=50]',
             },
             children: children,
             edges: edges,

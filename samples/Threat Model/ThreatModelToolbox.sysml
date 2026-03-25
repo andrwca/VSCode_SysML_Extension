@@ -79,16 +79,6 @@ package ThreatModelToolbox {
 		enum insider;
 	}
 
-	// ─── Metadata Definition (annotate any element) ───
-
-	metadata def StrideTag {
-		doc /* Annotate any element (port, interface, flow, component) with a
-		     * STRIDE threat classification. Apply with @StrideTag { ... }. */
-		attribute category : StrideCategoryKind;
-		attribute severity : SeverityKind;
-		attribute likelihood : LikelihoodKind;
-	}
-
 	// ─── Item Definitions (things that flow) ───
 
 	item def HttpRequest {
@@ -127,101 +117,251 @@ package ThreatModelToolbox {
 		attribute classification : DataClassificationKind;
 	}
 
-	// ─── Port Definitions (connection points) ───
-
-	port def HttpEndpoint {
-		doc /* A port that accepts and returns HTTP traffic.
-		     * Use ~HttpEndpoint for the client (conjugate) side. */
-		in item requests : HttpRequest;
-		out item responses : HttpResponse;
-	}
-
-	port def AuthProviderPort {
-		doc /* A port on an identity provider that issues tokens.
-		     * Use ~AuthProviderPort for the requester (conjugate) side. */
-		in item authRequests : HttpRequest;
-		out item tokens : AuthToken;
-	}
-
-	port def DatabaseServerPort {
-		doc /* A port on a data store that accepts queries.
-		     * Use ~DatabaseServerPort for the client (conjugate) side. */
-		in item queries : DatabaseQuery;
-		out item results : DatabaseResult;
-	}
-
-	port def TelemetrySinkPort {
-		doc /* A port that receives telemetry data.
-		     * Use ~TelemetrySinkPort for the source (conjugate) side. */
-		in item telemetry : TelemetryPayload;
-	}
-
-	port def SecretStorePort {
-		doc /* A port on a secret store that serves credentials.
-		     * Use ~SecretStorePort for the accessor (conjugate) side. */
-		in item secretRequests : HttpRequest;
-		out item secrets : Credential;
-	}
-
 	// ─── Component Definitions (architectural building blocks) ───
 
-	abstract part def Component {
-		doc /* Base definition for any processing element in the architecture. */
-		attribute description : ScalarValues::String;
-		attribute isPubliclyAccessible : ScalarValues::Boolean;
-		attribute authentication : AuthenticationKind;
-		attribute encryption : EncryptionKind;
-		port telemetryOut : ~TelemetrySinkPort;
-	}
+	part component {
 
-	part def WebApplication :> Component {
-		doc /* A web application or API hosted on a compute platform. */
-		port httpIn : HttpEndpoint;
-		port authOut : ~AuthProviderPort;
-		port dbOut : ~DatabaseServerPort;
-		port secretsOut : ~SecretStorePort;
-	}
+		abstract part def Component {
+			doc /* Base definition for any processing element in the architecture. */
+			attribute description : ScalarValues::String;
+			attribute isPubliclyAccessible : ScalarValues::Boolean;
+			attribute authentication : AuthenticationKind;
+			attribute encryption : EncryptionKind;
+		}
 
-	part def IdentityProvider :> Component {
-		doc /* An identity and access management service (e.g. Microsoft Entra ID). */
-		port authIn : AuthProviderPort;
-	}
+		part def WebApplication :> Component {
+			doc /* A web application or API hosted on a compute platform. */
+		}
 
-	part def DataStore :> Component {
-		doc /* A persistent data store (SQL database, NoSQL, blob storage, etc.). */
-		attribute dataClassification : DataClassificationKind;
-		port dbIn : DatabaseServerPort;
-	}
+		part def IdentityProvider :> Component {
+			doc /* An identity and access management service (e.g. Microsoft Entra ID). */
+		}
 
-	part def SecretStore :> Component {
-		doc /* A dedicated secret management service (e.g. Azure Key Vault). */
-		port secretsIn : SecretStorePort;
-	}
+		part def DataStore :> Component {
+			doc /* A persistent data store (SQL database, NoSQL, blob storage, etc.). */
+			attribute dataClassification : DataClassificationKind;
+		}
 
-	part def MonitoringService :> Component {
-		doc /* A monitoring, logging, or telemetry aggregation service. */
-		port telemetryIn : TelemetrySinkPort;
-	}
+		part def SecretStore :> Component {
+			doc /* A dedicated secret management service (e.g. Azure Key Vault). */
+		}
 
-	part def Gateway :> Component {
-		doc /* A network gateway, load balancer, or WAF. */
-		port externalIn : HttpEndpoint;
-		port internalOut : ~HttpEndpoint;
-	}
+		part def MonitoringService :> Component {
+			doc /* A monitoring, logging, or telemetry aggregation service. */
+		}
 
-	part def ExternalSystem :> Component {
-		doc /* An external system or third-party service. */
-		port httpIn : HttpEndpoint;
+		part def Gateway :> Component {
+			doc /* A network gateway, load balancer, or WAF. */
+		}
+
+		part def ExternalSystem :> Component {
+			doc /* An external system or third-party service. */
+		}
+
+		// ─── Azure Resource Definitions (specialised components per Azure service) ───
+
+		// ── Compute ──
+
+		part def AzureAppService :> WebApplication {
+			doc /* Azure App Service — managed PaaS for hosting web apps, REST APIs, and mobile backends. */
+		}
+
+		part def AzureFunctions :> WebApplication {
+			doc /* Azure Functions — serverless event-driven compute service. */
+		}
+
+		part def AzureContainerApps :> Component {
+			doc /* Azure Container Apps — managed container orchestration for microservices. */
+		}
+
+		part def AzureKubernetesService :> Component {
+			doc /* Azure Kubernetes Service (AKS) — managed Kubernetes cluster. */
+		}
+
+		part def AzureVirtualMachine :> Component {
+			doc /* Azure Virtual Machine — IaaS compute running Windows or Linux. */
+		}
+
+		// ── Networking ──
+
+		part def AzureApplicationGateway :> Gateway {
+			doc /* Azure Application Gateway — L7 load balancer with optional WAF. */
+			attribute wafEnabled : ScalarValues::Boolean;
+		}
+
+		part def AzureFrontDoor :> Gateway {
+			doc /* Azure Front Door — global entry point with CDN, WAF, and routing. */
+			attribute wafEnabled : ScalarValues::Boolean;
+		}
+
+		part def AzureLoadBalancer :> Gateway {
+			doc /* Azure Load Balancer — L4 load balancer for VMs and scale sets. */
+		}
+
+		part def AzureFirewall :> Gateway {
+			doc /* Azure Firewall — managed cloud-native network security service. */
+		}
+
+		part def AzureVirtualNetwork :> Component {
+			doc /* Azure Virtual Network (VNet) — isolated network for Azure resources. */
+		}
+
+		part def AzureDNS :> Component {
+			doc /* Azure DNS — DNS hosting service for domain name resolution. */
+		}
+
+		part def AzureTrafficManager :> Gateway {
+			doc /* Azure Traffic Manager — DNS-based traffic routing across regions. */
+		}
+
+		part def AzureCDN :> Component {
+			doc /* Azure CDN — content delivery network for caching static assets. */
+		}
+
+		part def AzureVPNGateway :> Gateway {
+			doc /* Azure VPN Gateway — encrypted cross-premises connectivity. */
+		}
+
+		part def AzurePrivateEndpoint :> Component {
+			doc /* Azure Private Endpoint — private connectivity to Azure services over VNet. */
+		}
+
+		// ── Identity & Security ──
+
+		part def AzureEntraID :> IdentityProvider {
+			doc /* Microsoft Entra ID (Azure AD) — cloud identity and access management. */
+		}
+
+		part def AzureKeyVault :> SecretStore {
+			doc /* Azure Key Vault — managed store for secrets, keys, and certificates. */
+		}
+
+		part def AzureDDoSProtection :> Component {
+			doc /* Azure DDoS Protection — volumetric attack mitigation for VNets. */
+		}
+
+		part def AzureManagedIdentity :> Component {
+			doc /* Azure Managed Identity — automatic credential management for service-to-service auth. */
+		}
+
+		// ── Data & Storage ──
+
+		part def AzureSQLDatabase :> DataStore {
+			doc /* Azure SQL Database — managed relational database (SQL Server engine). */
+		}
+
+		part def AzureCosmosDB :> DataStore {
+			doc /* Azure Cosmos DB — globally distributed multi-model NoSQL database. */
+		}
+
+		part def AzureBlobStorage :> DataStore {
+			doc /* Azure Blob Storage — object storage for unstructured data. */
+		}
+
+		part def AzureTableStorage :> DataStore {
+			doc /* Azure Table Storage — NoSQL key-value store for structured data. */
+		}
+
+		part def AzureQueueStorage :> Component {
+			doc /* Azure Queue Storage — simple message queuing between components. */
+		}
+
+		part def AzureRedisCache :> DataStore {
+			doc /* Azure Cache for Redis — in-memory data store for caching and sessions. */
+		}
+
+		part def AzureDataLakeStorage :> DataStore {
+			doc /* Azure Data Lake Storage Gen2 — scalable analytics-optimised storage. */
+		}
+
+		part def AzurePostgreSQL :> DataStore {
+			doc /* Azure Database for PostgreSQL — managed PostgreSQL service. */
+		}
+
+		part def AzureMySQL :> DataStore {
+			doc /* Azure Database for MySQL — managed MySQL service. */
+		}
+
+		// ── Integration & Messaging ──
+
+		part def AzureServiceBus :> Component {
+			doc /* Azure Service Bus — enterprise message broker with queues and topics. */
+		}
+
+		part def AzureEventHub :> Component {
+			doc /* Azure Event Hubs — big-data streaming and event ingestion service. */
+		}
+
+		part def AzureEventGrid :> Component {
+			doc /* Azure Event Grid — serverless event routing service. */
+		}
+
+		part def AzureAPIManagement :> Gateway {
+			doc /* Azure API Management — API gateway with policies, rate limiting, and developer portal. */
+		}
+
+		part def AzureLogicApps :> Component {
+			doc /* Azure Logic Apps — serverless workflow orchestration for integration scenarios. */
+		}
+
+		part def AzureSignalR :> Component {
+			doc /* Azure SignalR Service — managed real-time messaging for web applications. */
+		}
+
+		// ── Monitoring & Observability ──
+
+		part def AzureMonitor :> MonitoringService {
+			doc /* Azure Monitor — platform-level monitoring, metrics, and alerting. */
+		}
+
+		part def AzureApplicationInsights :> MonitoringService {
+			doc /* Application Insights — application performance monitoring and diagnostics. */
+		}
+
+		part def AzureLogAnalytics :> MonitoringService {
+			doc /* Azure Log Analytics — centralised log collection and KQL-based querying. */
+		}
+
+		part def AzureSentinel :> MonitoringService {
+			doc /* Microsoft Sentinel — cloud-native SIEM and SOAR for security operations. */
+		}
+
+		// ── AI & Cognitive ──
+
+		part def AzureOpenAI :> ExternalSystem {
+			doc /* Azure OpenAI Service — managed access to GPT and other foundation models. */
+		}
+
+		part def AzureCognitiveServices :> ExternalSystem {
+			doc /* Azure Cognitive Services — pre-built AI APIs for vision, speech, language, and search. */
+		}
+
+		// ── DevOps & Governance ──
+
+		part def AzureDevOps :> ExternalSystem {
+			doc /* Azure DevOps — CI/CD pipelines, boards, repos, and artifact management. */
+		}
+
+		part def AzurePolicy :> Component {
+			doc /* Azure Policy — governance engine enforcing organisational standards. */
+		}
+
+		part def AzureContainerRegistry :> DataStore {
+			doc /* Azure Container Registry — managed Docker container image registry. */
+		}
 	}
 
 	// ─── Threat Actor ───
 
-	part def ThreatActor {
+	part def ThreatActor :> Actor {
 		doc /* An entity that poses a threat to the system. */
-		attribute description : ScalarValues::String;
 		attribute motivation : ActorMotivationKind;
 		attribute capability : ActorCapabilityKind;
-		port clientPort : ~HttpEndpoint;
+	}
+
+	part def Actor {
+		doc /* An entity that acts on the system. */
+		attribute description : ScalarValues::String;
 	}
 
 	// ─── Trust Boundary ───

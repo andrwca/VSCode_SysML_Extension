@@ -1125,21 +1125,11 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 }
 
-                // Fallback: check if active editor is in a folder with
-                // threat-model-like SysML files, or use the active file.
+                // Fallback: use the active editor's file.
                 if (targetUris.length === 0) {
                     const editor = vscode.window.activeTextEditor;
                     if (editor && editor.document.languageId === 'sysml') {
-                        const dir = vscode.Uri.file(
-                            editor.document.uri.fsPath.substring(
-                                0, editor.document.uri.fsPath.lastIndexOf('/'),
-                            ),
-                        );
-                        const siblings = await vscode.workspace.findFiles(
-                            new vscode.RelativePattern(dir, '*.sysml'),
-                            '**/node_modules/**',
-                        );
-                        targetUris = siblings.length > 0 ? siblings : [editor.document.uri];
+                        targetUris = [editor.document.uri];
                     }
                 }
 
