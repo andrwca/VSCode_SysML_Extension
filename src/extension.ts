@@ -1395,8 +1395,9 @@ export function activate(context: vscode.ExtensionContext) {
                 // Language features are handled by the LSP server.
                 parseSysMLDocument(event.document);
 
-                // Keep the model dashboard in sync while it's open.
+                // Keep the model dashboard and threat model panel in sync while open.
                 ModelDashboardPanel.currentPanel?.notifyFileChanged(event.document.uri);
+                ThreatModelPanel.currentPanel?.notifyFileChanged(event.document.uri);
             }
         })
     );
@@ -1428,6 +1429,7 @@ export function activate(context: vscode.ExtensionContext) {
                 setTimeout(() => {
                     VisualizationPanel.currentPanel?.notifyFileChanged(document.uri);
                     ModelDashboardPanel.currentPanel?.notifyFileChanged(document.uri);
+                    ThreatModelPanel.currentPanel?.notifyFileChanged(document.uri);
                 }, 500);
             }
         })

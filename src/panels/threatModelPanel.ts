@@ -85,6 +85,7 @@ export class ThreatModelPanel {
   private readonly _extensionUri: vscode.Uri;
   private readonly _disposables: vscode.Disposable[] = [];
   private _fileUris: vscode.Uri[] = [];
+  private _fileChangeTimer: ReturnType<typeof setTimeout> | undefined;
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUris: vscode.Uri[]) {
     this._panel = panel;
@@ -95,10 +96,12 @@ export class ThreatModelPanel {
     this._panel.webview.onDidReceiveMessage(
       (msg: unknown) => {
         if (!msg || typeof msg !== 'object') { return; }
-        const m = msg as { command?: string; uri?: string };
+        const m = msg as { command?: string; uri?: string; name?: string };
         if (m.command === 'openFile' && m.uri) {
           const uri = vscode.Uri.parse(m.uri);
           vscode.window.showTextDocument(uri, { preview: false });
+        } else if ((m.command === 'jumpToThreat' || m.command === 'jumpToComponent') && m.name) {
+          void this._jumpToSource(m.name, m.command === 'jumpToThreat' ? 'threat' : 'component');
         }
       },
       null,
@@ -134,8 +137,48 @@ export class ThreatModelPanel {
 
   dispose(): void {
     ThreatModelPanel.currentPanel = undefined;
+    if (this._fileChangeTimer) { clearTimeout(this._fileChangeTimer); }
     this._panel.dispose();
     for (const d of this._disposables) { d.dispose(); }
+  }
+
+  public notifyFileChanged(uri: vscode.Uri): void {
+    if (!this._fileUris.some(u => u.toString() === uri.toString())) { return; }
+    if (this._fileChangeTimer) { clearTimeout(this._fileChangeTimer); }
+    this._fileChangeTimer = setTimeout(() => void this._render(), 400);
+  }
+
+  private async _jumpToSource(name: string, kind: 'threat' | 'component'): Promise<void> {
+    const pattern = kind === 'threat'
+      ? new RegExp(`(?:concern|part)\\s+${name}\\s*:\\s*(?:\\w+\\.)?Threat\\b`)
+      : new RegExp(`part\\s+${name}\\s*:`);
+    for (const uri of this._fileUris) {
+      try {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const text = doc.getText();
+        const match = pattern.exec(text);
+        if (!match) { continue; }
+        const startPos = doc.positionAt(match.index);
+        const endPos = doc.positionAt(match.index + match[0].length);
+        const range = new vscode.Range(startPos, endPos);
+        const editor = await vscode.window.showTextDocument(doc, {
+          viewColumn: vscode.ViewColumn.One,
+          preserveFocus: false,
+          preview: false,
+        });
+        editor.selection = new vscode.Selection(startPos, endPos);
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+        const deco = vscode.window.createTextEditorDecorationType({
+          backgroundColor: 'rgba(255, 215, 0, 0.4)',
+          border: '2px solid #FFD700',
+          borderRadius: '3px',
+          isWholeLine: false,
+        });
+        editor.setDecorations(deco, [range]);
+        setTimeout(() => deco.dispose(), 3000);
+        return;
+      } catch { /* skip unreadable */ }
+    }
   }
 
   // ── Parsing ────────────────────────────────────────────────────
@@ -177,11 +220,12 @@ export class ThreatModelPanel {
     const pkgDocMatch = cleaned.match(/package\s+\w+\s*\{[^}]*?doc\s+\/\*\s*([\s\S]*?)\*\//);
     if (pkgDocMatch) { model.packageDoc = pkgDocMatch[1].replace(/^\s*\*\s?/gm, '').trim(); }
 
-    // Helper to extract a redefined attribute value
+    // Helper to extract a redefined attribute value.
+    // Handles: Namespace::Enum::value, Enum::value, "string", true/false
     const getAttr = (block: string, attr: string): string => {
-      const re = new RegExp(`:>>\\s*${attr}\\s*=\\s*(?:(\\w+)::(\\w+)|"([^"]*)"|(true|false))`);
+      const re = new RegExp(`:>>\\s*${attr}\\s*=\\s*(?:(true|false)|"([^"]*)"|(?:\\w+::)*(\\w+))`);
       const m = block.match(re);
-      if (m) { return m[2] ?? m[3] ?? m[4] ?? ''; }
+      if (m) { return m[1] ?? m[2] ?? m[3] ?? ''; }
       return '';
     };
 
@@ -321,7 +365,7 @@ export class ThreatModelPanel {
    */
   private _findTypedBlocks(text: string, typeName: string): { name: string; body: string }[] {
     const results: { name: string; body: string }[] = [];
-    const re = new RegExp(`(?:part|concern|requirement|allocation)\\s+(\\w+)\\s*:\\s*(?:\\w+\\.)?${typeName}\\b`, 'g');
+    const re = new RegExp(`(?:part|concern|requirement|allocation)\\s+(\\w+)\\s*:\\s*(?:\\w+(?:::|\\.))?${typeName}\\b`, 'g');
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
       const name = m[1];
@@ -483,12 +527,12 @@ p { opacity: 0.6; font-style: italic; text-align: center; font-size: 14px; }
 
     // ── Build threats table rows ──
     const threatRows = model.threats.map(t => `
-            <tr>
+            <tr data-threat="${this._esc(t.name)}" data-component="${this._esc(t.targetComponent)}" style="cursor:pointer">
                 <td class="threat-name">${this._esc(this._camelToTitle(t.name))}</td>
                 <td><span class="stride-badge" style="background:${this._strideColor(t.strideCategory)}">${this._esc(this._strideLabel(t.strideCategory))}</span></td>
                 <td><span class="sev-badge" style="background:${this._severityColor(t.severity)}">${this._esc(t.severity)}</span></td>
                 <td><span class="lh-badge" style="background:${this._likelihoodColor(t.likelihood)}">${this._esc(t.likelihood)}</span></td>
-                <td>${this._esc(t.targetDescription || t.targetComponent)}</td>
+                <td class="target-cell" data-component="${this._esc(t.targetComponent)}">${this._esc(t.targetDescription || t.targetComponent)}</td>
                 <td class="threat-desc">${this._esc(t.description)}</td>
             </tr>`).join('');
 
@@ -630,7 +674,9 @@ body {
     border-bottom: 2px solid var(--border); position: sticky; top: 0; background: var(--bg);
 }
 .threats-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-.threats-table tr:hover { background: var(--header-bg); }
+.threats-table tr:hover { background: var(--header-bg); cursor: pointer; }
+.threats-table tr:active { opacity: 0.7; }
+.threats-table .target-cell:hover { text-decoration: underline; color: #4fc3f7; }
 .threat-name { font-weight: 600; white-space: nowrap; }
 .threat-desc { color: var(--subtle); max-width: 300px; }
 .stride-badge, .sev-badge, .lh-badge {
@@ -1141,6 +1187,24 @@ body {
         });
 
         cy.fit(undefined, 30);
+    });
+    // ── Threat table click handlers ──
+    document.querySelectorAll('.threats-table tbody tr').forEach(function(row) {
+        row.addEventListener('click', function(e) {
+            // If clicking the target cell specifically, jump to component
+            if (e.target && e.target.closest && e.target.closest('.target-cell')) {
+                const comp = e.target.closest('.target-cell').getAttribute('data-component');
+                if (comp) {
+                    vscode.postMessage({ command: 'jumpToComponent', name: comp });
+                    return;
+                }
+            }
+            // Otherwise jump to the threat definition
+            const threat = row.getAttribute('data-threat');
+            if (threat) {
+                vscode.postMessage({ command: 'jumpToThreat', name: threat });
+            }
+        });
     });
 })();
 </script>
